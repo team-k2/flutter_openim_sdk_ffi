@@ -1,0 +1,72 @@
+# Flutter OpenIM SDK FFI 編譯配置
+# 用於指定自定義的 openim-sdk-core
+
+# 自定義 SDK Core 設置
+custom_sdk_core:
+  # 使用本地 SDK Core（開發時使用）
+  use_local: true
+  local_path: "../openim-sdk-core"
+
+  # 使用 Git 倉庫（CI/CD 時使用）
+  use_remote: false
+  repository: "K2IM-github/openim-sdk-core"  # 改為你的倉庫
+  branch: "main"
+
+  # 使用私有倉庫時需要設置
+  private_repo: false
+  # access_token: "${GITHUB_TOKEN}"  # 從環境變量讀取
+
+# 編譯選項
+build_options:
+  # 編譯目標平台
+  platforms:
+    ios: true
+    android: true
+    macos: true
+    windows: true
+    linux: true
+
+  # Android 設置
+  android:
+    api_level: 21
+    architectures:
+      - "armeabi-v7a"
+      - "arm64-v8a"
+      - "x86_64"
+
+  # iOS 設置
+  ios:
+    min_version: "11.0"
+    architectures:
+      - "arm64"
+
+  # 優化選項
+  optimization:
+    strip_symbols: true  # -s
+    strip_debug: true    # -w
+    custom_ldflags: ""
+
+# Go 編譯環境
+go_environment:
+  version: "1.21"
+  gomobile_version: "latest"
+
+# 輸出目錄
+output:
+  ios: "ios/OpenIMCore.xcframework"
+  android: "android/libs/openim-sdk.aar"
+  macos: "macos/libs/libopenim_sdk.dylib"
+  windows: "windows/libs/openim_sdk.dll"
+  linux: "linux/libs/libopenim_sdk.so"
+
+# 測試設置
+testing:
+  run_tests_before_build: true
+  test_timeout: 300  # 秒
+
+# 版本信息
+version_info:
+  include_version: true
+  version_prefix: "custom-"
+  include_commit_hash: true
+  include_build_date: true

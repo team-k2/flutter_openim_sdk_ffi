@@ -54,6 +54,7 @@ part 'src/models/set_group_member_info.dart';
 part 'src/models/update_req.dart';
 part 'src/models/user_info.dart';
 part 'src/models/user_info_full.dart';
+part 'src/models/edit_models.dart';
 
 /// root
 part 'src/openim.dart';

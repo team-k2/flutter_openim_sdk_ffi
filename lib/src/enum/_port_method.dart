@@ -163,4 +163,10 @@ class _PortMethod {
   static const String setAppBackgroundStatus = 'SetAppBackgroundStatus';
 
   static const String wakeUp = 'WakeUp';
+
+  /// 消息編輯相關
+  static const String editMessage = 'EditMessage';
+  static const String validateEditPermission = 'ValidateEditPermission';
+  static const String getMessageEditHistory = 'GetMessageEditHistory';
+  static const String getEditableMessages = 'GetEditableMessages';
 }

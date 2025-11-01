@@ -1024,4 +1024,120 @@ class MessageManager {
 
     return result.value;
   }
+
+  /// 編輯消息
+  Future<void> editMessage({
+    required String conversationID,
+    required int seq,
+    required String newContent,
+    String? editReason,
+    String? operationID,
+  }) async {
+    ReceivePort receivePort = ReceivePort();
+
+    OpenIMManager._sendPort.send(_PortModel(
+      method: _PortMethod.editMessage,
+      data: {
+        'conversationID': conversationID,
+        'seq': seq,
+        'newContent': newContent,
+        'editReason': editReason ?? '',
+        'operationID': IMUtils.checkOperationID(operationID),
+      },
+      sendPort: receivePort.sendPort,
+    ));
+
+    _PortResult result = await receivePort.first;
+    receivePort.close();
+
+    if (result.error != null) {
+      throw OpenIMError(result.errCode!, result.error!);
+    }
+  }
+
+  /// 驗證編輯權限
+  Future<Map<String, dynamic>> validateEditPermission({
+    required String conversationID,
+    required int seq,
+    String? operationID,
+  }) async {
+    ReceivePort receivePort = ReceivePort();
+
+    OpenIMManager._sendPort.send(_PortModel(
+      method: _PortMethod.validateEditPermission,
+      data: {
+        'conversationID': conversationID,
+        'seq': seq,
+        'operationID': IMUtils.checkOperationID(operationID),
+      },
+      sendPort: receivePort.sendPort,
+    ));
+
+    _PortResult result = await receivePort.first;
+    receivePort.close();
+
+    if (result.error != null) {
+      throw OpenIMError(result.errCode!, result.error!);
+    }
+
+    return result.value;
+  }
+
+  /// 獲取編輯歷史
+  Future<List<Map<String, dynamic>>> getMessageEditHistory({
+    required String conversationID,
+    required int seq,
+    String? operationID,
+  }) async {
+    ReceivePort receivePort = ReceivePort();
+
+    OpenIMManager._sendPort.send(_PortModel(
+      method: _PortMethod.getMessageEditHistory,
+      data: {
+        'conversationID': conversationID,
+        'seq': seq,
+        'operationID': IMUtils.checkOperationID(operationID),
+      },
+      sendPort: receivePort.sendPort,
+    ));
+
+    _PortResult result = await receivePort.first;
+    receivePort.close();
+
+    if (result.error != null) {
+      throw OpenIMError(result.errCode!, result.error!);
+    }
+
+    return (result.value as List).cast<Map<String, dynamic>>();
+  }
+
+  /// 獲取可編輯消息列表
+  Future<Map<String, dynamic>> getEditableMessages({
+    required String conversationID,
+    int pageNumber = 1,
+    int showNumber = 20,
+    String? operationID,
+  }) async {
+    ReceivePort receivePort = ReceivePort();
+
+    OpenIMManager._sendPort.send(_PortModel(
+      method: _PortMethod.getEditableMessages,
+      data: {
+        'conversationID': conversationID,
+        'pageNumber': pageNumber,
+        'showNumber': showNumber,
+        'operationID': IMUtils.checkOperationID(operationID),
+      },
+      sendPort: receivePort.sendPort,
+    ));
+
+    _PortResult result = await receivePort.first;
+    receivePort.close();
+
+    if (result.error != null) {
+      throw OpenIMError(result.errCode!, result.error!);
+    }
+
+    return result.value;
+  }
 }

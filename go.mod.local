@@ -1,0 +1,22 @@
+// go.mod.local - 用於本地開發時替換官方 SDK Core
+//
+// 使用方法：
+// 1. 複製此文件為 go.mod（在 openim-sdk-core 目錄）
+// 2. 修改 replace 指令指向你的本地路徑
+// 3. 編譯時會使用本地版本
+
+module github.com/openimsdk/openim-sdk-core/v3
+
+go 1.21
+
+// 替換為本地自定義版本
+replace (
+    // 如果你的 SDK Core 在同級目錄
+    github.com/openimsdk/openim-sdk-core/v3 => ../openim-sdk-core
+
+    // 或使用絕對路徑
+    // github.com/openimsdk/openim-sdk-core/v3 => /Users/macoluo/Projects/K2IM-github/openim-sdk-core
+)
+
+// 如果需要使用特定 Git 分支
+// replace github.com/openimsdk/openim-sdk-core/v3 => github.com/your-org/openim-sdk-core/v3 feature/message-edit

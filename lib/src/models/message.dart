@@ -121,6 +121,21 @@ class Message {
   ///
   TypingElem? typingElem;
 
+  /// 是否已編輯
+  bool? isEdited;
+
+  /// 編輯次數
+  int? editCount;
+
+  /// 最後編輯時間
+  int? lastEditTime;
+
+  /// 最後編輯者ID
+  String? lastEditUserID;
+
+  /// 原始內容（編輯前）
+  String? originalContent;
+
   Message({
     this.clientMsgID,
     this.serverMsgID,
@@ -162,6 +177,11 @@ class Message {
     this.cardElem,
     this.advancedTextElem,
     this.typingElem,
+    this.isEdited,
+    this.editCount,
+    this.lastEditTime,
+    this.lastEditUserID,
+    this.originalContent,
   });
 
   Message.fromJson(Map<String, dynamic> json) {
@@ -206,6 +226,11 @@ class Message {
     cardElem = json['cardElem'] != null ? CardElem.fromJson(json['cardElem']) : null;
     advancedTextElem = json['advancedTextElem'] != null ? AdvancedTextElem.fromJson(json['advancedTextElem']) : null;
     typingElem = json['typingElem'] != null ? TypingElem.fromJson(json['typingElem']) : null;
+    isEdited = json['isEdited'];
+    editCount = json['editCount'];
+    lastEditTime = json['lastEditTime'];
+    lastEditUserID = json['lastEditUserID'];
+    originalContent = json['originalContent'];
   }
 
   Map<String, dynamic> toJson() {
@@ -250,6 +275,11 @@ class Message {
     data['cardElem'] = cardElem?.toJson();
     data['advancedTextElem'] = advancedTextElem?.toJson();
     data['typingElem'] = typingElem?.toJson();
+    data['isEdited'] = isEdited;
+    data['editCount'] = editCount;
+    data['lastEditTime'] = lastEditTime;
+    data['lastEditUserID'] = lastEditUserID;
+    data['originalContent'] = originalContent;
     return data;
   }
 

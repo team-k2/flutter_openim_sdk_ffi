@@ -1,0 +1,7 @@
+LIBRARY openim_sdk
+EXPORTS
+    EditMessage
+    ValidateEditPermission
+    GetMessageEditHistory
+    GetEditableMessages
+    ; 添加其他需要導出的函數
