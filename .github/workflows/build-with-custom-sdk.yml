@@ -122,8 +122,8 @@ jobs:
           cd $GOPATH/src/golang.org/x
           git clone https://github.com/golang/mobile.git
           cd mobile
-          # Checkout specific version compatible with Go 1.22
-          git checkout v0.0.0-20240213143359-d1f7d3436075
+          # Checkout specific commit compatible with Go 1.22
+          git checkout d1f7d3436075
 
           # Build and install gomobile from source
           cd $GOPATH/src/golang.org/x/mobile/cmd/gomobile
@@ -221,8 +221,8 @@ jobs:
           cd $GOPATH/src/golang.org/x
           git clone https://github.com/golang/mobile.git
           cd mobile
-          # Checkout specific version compatible with Go 1.22
-          git checkout v0.0.0-20240213143359-d1f7d3436075
+          # Checkout specific commit compatible with Go 1.22
+          git checkout d1f7d3436075
 
           # Build and install gomobile from source
           cd $GOPATH/src/golang.org/x/mobile/cmd/gomobile
