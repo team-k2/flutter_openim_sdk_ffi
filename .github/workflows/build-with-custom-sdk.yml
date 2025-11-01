@@ -117,11 +117,19 @@ jobs:
           export PATH=$PATH:$GOPATH/bin
           echo "$GOPATH/bin" >> $GITHUB_PATH
 
-          # Install gomobile with a compatible version for Go 1.23
-          go install golang.org/x/mobile/cmd/gomobile@v0.0.0-20240604190613-2782386b8afd
-          go install golang.org/x/mobile/cmd/gobind@v0.0.0-20240604190613-2782386b8afd
+          # Clone the mobile repository with the bind package
+          mkdir -p $GOPATH/src/golang.org/x
+          cd $GOPATH/src/golang.org/x
+          git clone https://github.com/golang/mobile.git
+          cd mobile
+          git checkout v0.0.0-20240604190613-2782386b8afd
 
-          # Initialize gomobile
+          # Install gomobile and gobind from the cloned repository
+          go install ./cmd/gomobile
+          go install ./cmd/gobind
+
+          # Initialize gomobile (this will use the local packages)
+          cd $GOPATH
           $GOPATH/bin/gomobile init -v
 
       - name: Build iOS Framework
@@ -129,18 +137,24 @@ jobs:
           cd openim-sdk-core
           export GOPATH=$(go env GOPATH)
           export PATH=$PATH:$GOPATH/bin
+          export GO111MODULE=off
 
           echo "Building iOS Framework from branch: ${{ env.SDK_CORE_BRANCH }}"
 
-          # Ensure packages are available
-          go mod download
+          # Copy SDK to GOPATH for GOPATH mode
+          mkdir -p $GOPATH/src/github.com/openimsdk
+          cp -r . $GOPATH/src/github.com/openimsdk/openim-sdk-core
+
+          # Build from GOPATH location
+          cd $GOPATH/src/github.com/openimsdk/openim-sdk-core
 
           # 編譯 iOS Framework
           $GOPATH/bin/gomobile bind -v \
             -target=ios \
-            -o ../flutter_sdk/ios/OpenIMCore.xcframework \
-            -ldflags="-s -w -X main.SDKVersion=${{ needs.prepare-custom-sdk.outputs.sdk-version }}" \
-            ./open_im_sdk ./open_im_sdk_callback
+            -o $GITHUB_WORKSPACE/flutter_sdk/ios/OpenIMCore.xcframework \
+            -ldflags="-s -w" \
+            github.com/openimsdk/openim-sdk-core/open_im_sdk \
+            github.com/openimsdk/openim-sdk-core/open_im_sdk_callback
 
       - name: Verify Framework
         run: |
@@ -205,11 +219,19 @@ jobs:
           export PATH=$PATH:$GOPATH/bin
           echo "$GOPATH/bin" >> $GITHUB_PATH
 
-          # Install gomobile with a compatible version for Go 1.23
-          go install golang.org/x/mobile/cmd/gomobile@v0.0.0-20240604190613-2782386b8afd
-          go install golang.org/x/mobile/cmd/gobind@v0.0.0-20240604190613-2782386b8afd
+          # Clone the mobile repository with the bind package
+          mkdir -p $GOPATH/src/golang.org/x
+          cd $GOPATH/src/golang.org/x
+          git clone https://github.com/golang/mobile.git
+          cd mobile
+          git checkout v0.0.0-20240604190613-2782386b8afd
 
-          # Initialize gomobile
+          # Install gomobile and gobind from the cloned repository
+          go install ./cmd/gomobile
+          go install ./cmd/gobind
+
+          # Initialize gomobile (this will use the local packages)
+          cd $GOPATH
           $GOPATH/bin/gomobile init -v
 
       - name: Build Android AAR
@@ -217,18 +239,24 @@ jobs:
           cd openim-sdk-core
           export GOPATH=$(go env GOPATH)
           export PATH=$PATH:$GOPATH/bin
+          export GO111MODULE=off
 
           echo "Building Android AAR from branch: ${{ env.SDK_CORE_BRANCH }}"
 
-          # Ensure packages are available
-          go mod download
+          # Copy SDK to GOPATH for GOPATH mode
+          mkdir -p $GOPATH/src/github.com/openimsdk
+          cp -r . $GOPATH/src/github.com/openimsdk/openim-sdk-core
+
+          # Build from GOPATH location
+          cd $GOPATH/src/github.com/openimsdk/openim-sdk-core
 
           $GOPATH/bin/gomobile bind -v \
             -target=android \
             -androidapi ${{ env.ANDROID_API_LEVEL }} \
-            -o ../flutter_sdk/android/libs/openim-sdk.aar \
-            -ldflags="-s -w -X main.SDKVersion=${{ needs.prepare-custom-sdk.outputs.sdk-version }}" \
-            ./open_im_sdk ./open_im_sdk_callback
+            -o $GITHUB_WORKSPACE/flutter_sdk/android/libs/openim-sdk.aar \
+            -ldflags="-s -w" \
+            github.com/openimsdk/openim-sdk-core/open_im_sdk \
+            github.com/openimsdk/openim-sdk-core/open_im_sdk_callback
 
       - name: Verify AAR
         run: |
