@@ -29,7 +29,7 @@ on:
     branches: [ main ]
 
 env:
-  GO_VERSION: '1.23'
+  GO_VERSION: '1.22'  # Use Go 1.22 for better gomobile compatibility
   ANDROID_API_LEVEL: 21
   # 自定義 SDK Core 的倉庫設置
   SDK_CORE_REPO: 'team-k2/openim-sdk-core'  # ⚠️ 修正：不要加 https://github.com/
@@ -117,9 +117,9 @@ jobs:
           export PATH=$PATH:$GOPATH/bin
           echo "$GOPATH/bin" >> $GITHUB_PATH
 
-          # Install gomobile using a specific version that works with Go 1.23
-          go install golang.org/x/mobile/cmd/gomobile@v0.0.0-20240604190613-2782386b8afd
-          go install golang.org/x/mobile/cmd/gobind@v0.0.0-20240604190613-2782386b8afd
+          # Install gomobile version compatible with Go 1.22
+          go install golang.org/x/mobile/cmd/gomobile@v0.0.0-20240213143359-d1f7d3436075
+          go install golang.org/x/mobile/cmd/gobind@v0.0.0-20240213143359-d1f7d3436075
 
           # Initialize gomobile
           $GOPATH/bin/gomobile init -v
@@ -205,9 +205,9 @@ jobs:
           export PATH=$PATH:$GOPATH/bin
           echo "$GOPATH/bin" >> $GITHUB_PATH
 
-          # Install gomobile using a specific version that works with Go 1.23
-          go install golang.org/x/mobile/cmd/gomobile@v0.0.0-20240604190613-2782386b8afd
-          go install golang.org/x/mobile/cmd/gobind@v0.0.0-20240604190613-2782386b8afd
+          # Install gomobile version compatible with Go 1.22
+          go install golang.org/x/mobile/cmd/gomobile@v0.0.0-20240213143359-d1f7d3436075
+          go install golang.org/x/mobile/cmd/gobind@v0.0.0-20240213143359-d1f7d3436075
 
           # Initialize gomobile
           $GOPATH/bin/gomobile init -v
