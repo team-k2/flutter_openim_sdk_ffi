@@ -115,7 +115,10 @@ jobs:
           # Set Go environment
           export GOPATH=$(go env GOPATH)
           export PATH=$PATH:$GOPATH/bin
+          export GO111MODULE=off
           echo "$GOPATH/bin" >> $GITHUB_PATH
+          echo "GOPATH=$GOPATH" >> $GITHUB_ENV
+          echo "GO111MODULE=off" >> $GITHUB_ENV
 
           # Clone golang.org/x/mobile to GOPATH
           mkdir -p $GOPATH/src/golang.org/x
@@ -125,28 +128,29 @@ jobs:
           # Checkout specific commit compatible with Go 1.22
           git checkout d1f7d3436075
 
-          # Build and install gomobile from source
+          # Build and install gomobile from source in GOPATH mode
           cd $GOPATH/src/golang.org/x/mobile/cmd/gomobile
-          go install
+          GO111MODULE=off go install
           cd $GOPATH/src/golang.org/x/mobile/cmd/gobind
-          go install
+          GO111MODULE=off go install
 
           # Initialize gomobile
           cd $GITHUB_WORKSPACE
-          $GOPATH/bin/gomobile init -v
+          GO111MODULE=off $GOPATH/bin/gomobile init -v
 
       - name: Build iOS Framework
         run: |
           cd openim-sdk-core
           export GOPATH=$(go env GOPATH)
           export PATH=$PATH:$GOPATH/bin
+          export GO111MODULE=on  # Use module mode for the SDK build
 
           echo "Building iOS Framework from branch: ${{ env.SDK_CORE_BRANCH }}"
 
           # Ensure all dependencies are available
           go mod download
 
-          # Try building with gomobile directly (without -mod flag)
+          # Build with gomobile (gobind will use GOPATH to find bind package)
           $GOPATH/bin/gomobile bind -v \
             -target=ios \
             -o ../flutter_sdk/ios/OpenIMCore.xcframework \
@@ -214,7 +218,10 @@ jobs:
           # Set Go environment
           export GOPATH=$(go env GOPATH)
           export PATH=$PATH:$GOPATH/bin
+          export GO111MODULE=off
           echo "$GOPATH/bin" >> $GITHUB_PATH
+          echo "GOPATH=$GOPATH" >> $GITHUB_ENV
+          echo "GO111MODULE=off" >> $GITHUB_ENV
 
           # Clone golang.org/x/mobile to GOPATH
           mkdir -p $GOPATH/src/golang.org/x
@@ -224,28 +231,29 @@ jobs:
           # Checkout specific commit compatible with Go 1.22
           git checkout d1f7d3436075
 
-          # Build and install gomobile from source
+          # Build and install gomobile from source in GOPATH mode
           cd $GOPATH/src/golang.org/x/mobile/cmd/gomobile
-          go install
+          GO111MODULE=off go install
           cd $GOPATH/src/golang.org/x/mobile/cmd/gobind
-          go install
+          GO111MODULE=off go install
 
           # Initialize gomobile
           cd $GITHUB_WORKSPACE
-          $GOPATH/bin/gomobile init -v
+          GO111MODULE=off $GOPATH/bin/gomobile init -v
 
       - name: Build Android AAR
         run: |
           cd openim-sdk-core
           export GOPATH=$(go env GOPATH)
           export PATH=$PATH:$GOPATH/bin
+          export GO111MODULE=on  # Use module mode for the SDK build
 
           echo "Building Android AAR from branch: ${{ env.SDK_CORE_BRANCH }}"
 
           # Ensure all dependencies are available
           go mod download
 
-          # Build Android AAR (without -mod flag)
+          # Build Android AAR (gobind will use GOPATH to find bind package)
           $GOPATH/bin/gomobile bind -v \
             -target=android \
             -androidapi ${{ env.ANDROID_API_LEVEL }} \
