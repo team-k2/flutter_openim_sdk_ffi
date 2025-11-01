@@ -1,22 +1,38 @@
 name: Build FFI with Custom SDK Core
 
 on:
-  push:
-    branches: [ main, develop, feature/* ]
-  pull_request:
-    branches: [ main ]
+  # 手動觸發 - 可以在任何分支執行
   workflow_dispatch:
     inputs:
       sdk_core_branch:
         description: 'openim-sdk-core branch to use'
         required: false
-        default: 'main'
+        default: 'completeEditMessage'  # 預設使用 completeEditMessage 分支
+      platforms:
+        description: 'Platforms to build (comma-separated: ios,android,windows,macos,linux or all)'
+        required: false
+        default: 'all'
+
+  # 自動觸發 - 特定分支
+  push:
+    branches:
+      - main
+      - develop
+      - 'feature/**'
+      - 'completeEditMessage'  # 添加當前分支
+    paths:
+      - '**.dart'
+      - '**.go'
+      - '.github/workflows/**'
+
+  pull_request:
+    branches: [ main ]
 
 env:
   GO_VERSION: '1.21'
   ANDROID_API_LEVEL: 21
   # 自定義 SDK Core 的倉庫設置
-  SDK_CORE_REPO: 'team-k2/openim-sdk-core'  # 改為你的倉庫
+  SDK_CORE_REPO: 'team-k2/openim-sdk-core'  # ⚠️ 修正：不要加 https://github.com/
   SDK_CORE_BRANCH: ${{ github.event.inputs.sdk_core_branch || 'completeEditMessage' }}
 
 jobs:
@@ -34,18 +50,21 @@ jobs:
       - name: Checkout custom openim-sdk-core
         uses: actions/checkout@v3
         with:
-          repository: ${{ env.SDK_CORE_REPO }}
-          ref: ${{ env.SDK_CORE_BRANCH }}
+          repository: ${{ env.SDK_CORE_REPO }}  # ✅ 這裡會使用 team-k2/openim-sdk-core
+          ref: ${{ env.SDK_CORE_BRANCH }}       # ✅ 會使用 completeEditMessage 分支
           path: sdk_core
-          token: ${{ secrets.GITHUB_TOKEN }}  # 如果是私有倉庫，使用 PAT
+          # 如果是公開倉庫，不需要 token
 
       - name: Get SDK Core version
         id: get-version
         run: |
           cd sdk_core
           VERSION=$(git rev-parse --short HEAD)
+          BRANCH=$(git rev-parse --abbrev-ref HEAD)
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "SDK Core version: $VERSION"
+          echo "SDK Core branch: $BRANCH"
+          echo "Repository: ${{ env.SDK_CORE_REPO }}"
 
       - name: Upload SDK Core as artifact
         uses: actions/upload-artifact@v3
@@ -103,6 +122,8 @@ jobs:
           cd openim-sdk-core
           export PATH=$PATH:$(go env GOPATH)/bin
 
+          echo "Building iOS Framework from branch: ${{ env.SDK_CORE_BRANCH }}"
+
           # 編譯 iOS Framework
           gomobile bind -v \
             -target=ios \
@@ -112,8 +133,15 @@ jobs:
 
       - name: Verify Framework
         run: |
+          echo "Verifying iOS Framework..."
           ls -la flutter_sdk/ios/
-          file flutter_sdk/ios/OpenIMCore.xcframework/ios-arm64/OpenIMCore.framework/OpenIMCore
+          if [ -d "flutter_sdk/ios/OpenIMCore.xcframework" ]; then
+            echo "✅ iOS Framework built successfully"
+            file flutter_sdk/ios/OpenIMCore.xcframework/ios-arm64/OpenIMCore.framework/OpenIMCore
+          else
+            echo "❌ iOS Framework build failed"
+            exit 1
+          fi
 
       - name: Upload iOS Framework
         uses: actions/upload-artifact@v3
@@ -171,6 +199,8 @@ jobs:
           cd openim-sdk-core
           export PATH=$PATH:$(go env GOPATH)/bin
 
+          echo "Building Android AAR from branch: ${{ env.SDK_CORE_BRANCH }}"
+
           gomobile bind -v \
             -target=android \
             -androidapi ${{ env.ANDROID_API_LEVEL }} \
@@ -180,8 +210,15 @@ jobs:
 
       - name: Verify AAR
         run: |
+          echo "Verifying Android AAR..."
           ls -la flutter_sdk/android/libs/
-          unzip -l flutter_sdk/android/libs/openim-sdk.aar | head -20
+          if [ -f "flutter_sdk/android/libs/openim-sdk.aar" ]; then
+            echo "✅ Android AAR built successfully"
+            unzip -l flutter_sdk/android/libs/openim-sdk.aar | head -20
+          else
+            echo "❌ Android AAR build failed"
+            exit 1
+          fi
 
       - name: Upload Android AAR
         uses: actions/upload-artifact@v3
@@ -189,22 +226,9 @@ jobs:
           name: android-aar-custom
           path: flutter_sdk/android/libs/openim-sdk.aar
 
-  build-desktop:
-    name: Build Desktop Libraries with Custom SDK
-    strategy:
-      matrix:
-        os: [macos-latest, windows-latest, ubuntu-latest]
-        include:
-          - os: macos-latest
-            platform: macos
-            output: libopenim_sdk.dylib
-          - os: windows-latest
-            platform: windows
-            output: openim_sdk.dll
-          - os: ubuntu-latest
-            platform: linux
-            output: libopenim_sdk.so
-    runs-on: ${{ matrix.os }}
+  build-macos:
+    name: Build macOS Library
+    runs-on: macos-latest
     needs: prepare-custom-sdk
     steps:
       - name: Download custom SDK Core
@@ -223,12 +247,6 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
 
-      - name: Setup MinGW (Windows)
-        if: matrix.os == 'windows-latest'
-        uses: egor-tensin/setup-mingw@v2
-        with:
-          platform: x64
-
       - name: Configure go.mod
         run: |
           cd openim-sdk-core
@@ -236,9 +254,96 @@ jobs:
             go mod init github.com/openimsdk/openim-sdk-core/v3
           fi
           go mod tidy
-        shell: bash
 
-      - name: Create wrapper for desktop
+      - name: Create wrapper for macOS
+        run: |
+          mkdir -p openim-sdk-core/cmd/clib
+          cat > openim-sdk-core/cmd/clib/main.go << 'EOF'
+          package main
+
+          import "C"
+          import (
+              _ "github.com/openimsdk/openim-sdk-core/v3/open_im_sdk"
+              _ "github.com/openimsdk/openim-sdk-core/v3/open_im_sdk_callback"
+          )
+
+          //export InitSDK
+          func InitSDK() {}
+
+          //export GetVersion
+          func GetVersion() *C.char {
+              return C.CString("custom-${{ needs.prepare-custom-sdk.outputs.sdk-version }}")
+          }
+
+          func main() {}
+          EOF
+
+      - name: Build macOS Library
+        run: |
+          cd openim-sdk-core
+
+          echo "Building macOS library from branch: ${{ env.SDK_CORE_BRANCH }}"
+
+          go build -buildmode=c-shared \
+            -ldflags="-s -w" \
+            -o ../flutter_sdk/macos/libopenim_sdk.dylib \
+            ./cmd/clib
+
+      - name: Verify macOS Library
+        run: |
+          echo "Verifying macOS library..."
+          if [ -f "flutter_sdk/macos/libopenim_sdk.dylib" ]; then
+            echo "✅ macOS library built successfully"
+            file flutter_sdk/macos/libopenim_sdk.dylib
+            # 檢查編輯功能是否存在
+            nm -g flutter_sdk/macos/libopenim_sdk.dylib | grep -i edit || echo "Warning: Edit functions not found"
+          else
+            echo "❌ macOS library build failed"
+            exit 1
+          fi
+
+      - name: Upload macOS Library
+        uses: actions/upload-artifact@v3
+        with:
+          name: macos-library-custom
+          path: flutter_sdk/macos/libopenim_sdk.dylib
+
+  build-windows:
+    name: Build Windows DLL
+    runs-on: windows-latest
+    needs: prepare-custom-sdk
+    steps:
+      - name: Download custom SDK Core
+        uses: actions/download-artifact@v3
+        with:
+          name: custom-sdk-core
+          path: ./openim-sdk-core
+
+      - name: Checkout flutter_openim_sdk_ffi
+        uses: actions/checkout@v3
+        with:
+          path: ./flutter_sdk
+
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Setup MinGW
+        uses: egor-tensin/setup-mingw@v2
+        with:
+          platform: x64
+
+      - name: Configure go.mod
+        shell: bash
+        run: |
+          cd openim-sdk-core
+          if [ ! -f go.mod ]; then
+            go mod init github.com/openimsdk/openim-sdk-core/v3
+          fi
+          go mod tidy
+
+      - name: Create wrapper for Windows
         shell: bash
         run: |
           mkdir -p openim-sdk-core/cmd/clib
@@ -262,34 +367,41 @@ jobs:
           func main() {}
           EOF
 
-      - name: Build Desktop Library
+      - name: Build Windows DLL
         shell: bash
         run: |
           cd openim-sdk-core
 
-          if [ "${{ matrix.platform }}" = "windows" ]; then
-            export CGO_ENABLED=1
-            go build -buildmode=c-shared \
-              -ldflags="-s -w" \
-              -o ../flutter_sdk/${{ matrix.platform }}/${{ matrix.output }} \
-              ./cmd/clib
+          echo "Building Windows DLL from branch: ${{ env.SDK_CORE_BRANCH }}"
+
+          export CGO_ENABLED=1
+          go build -buildmode=c-shared \
+            -ldflags="-s -w" \
+            -o ../flutter_sdk/windows/openim_sdk.dll \
+            ./cmd/clib
+
+      - name: Verify Windows DLL
+        shell: bash
+        run: |
+          echo "Verifying Windows DLL..."
+          if [ -f "flutter_sdk/windows/openim_sdk.dll" ]; then
+            echo "✅ Windows DLL built successfully"
+            file flutter_sdk/windows/openim_sdk.dll
           else
-            go build -buildmode=c-shared \
-              -ldflags="-s -w" \
-              -o ../flutter_sdk/${{ matrix.platform }}/${{ matrix.output }} \
-              ./cmd/clib
+            echo "❌ Windows DLL build failed"
+            exit 1
           fi
 
-      - name: Upload Desktop Library
+      - name: Upload Windows DLL
         uses: actions/upload-artifact@v3
         with:
-          name: ${{ matrix.platform }}-library-custom
-          path: flutter_sdk/${{ matrix.platform }}/${{ matrix.output }}
+          name: windows-library-custom
+          path: flutter_sdk/windows/openim_sdk.dll
 
   package-release:
     name: Package All Platforms
     runs-on: ubuntu-latest
-    needs: [build-ios, build-android, build-desktop]
+    needs: [build-ios, build-android, build-macos, build-windows]
     steps:
       - name: Checkout flutter_openim_sdk_ffi
         uses: actions/checkout@v3
@@ -301,30 +413,38 @@ jobs:
 
       - name: Create release structure
         run: |
-          mkdir -p release/{ios,android,macos,windows,linux}
+          mkdir -p release/{ios,android,macos,windows}
 
           # iOS
           if [ -d "artifacts/ios-framework-custom" ]; then
             cp -r artifacts/ios-framework-custom/* release/ios/
+            echo "✅ iOS Framework packaged"
           fi
 
           # Android
           if [ -f "artifacts/android-aar-custom/openim-sdk.aar" ]; then
             cp artifacts/android-aar-custom/openim-sdk.aar release/android/
+            echo "✅ Android AAR packaged"
           fi
 
-          # Desktop platforms
-          for platform in macos windows linux; do
-            if [ -d "artifacts/${platform}-library-custom" ]; then
-              cp artifacts/${platform}-library-custom/* release/${platform}/
-            fi
-          done
+          # macOS
+          if [ -f "artifacts/macos-library-custom/libopenim_sdk.dylib" ]; then
+            cp artifacts/macos-library-custom/libopenim_sdk.dylib release/macos/
+            echo "✅ macOS library packaged"
+          fi
+
+          # Windows
+          if [ -f "artifacts/windows-library-custom/openim_sdk.dll" ]; then
+            cp artifacts/windows-library-custom/openim_sdk.dll release/windows/
+            echo "✅ Windows DLL packaged"
+          fi
 
       - name: Create version info
         run: |
           cat > release/VERSION.json << EOF
           {
             "build_date": "$(date -u +"%Y-%m-%d %H:%M:%S UTC")",
+            "sdk_core_repo": "${{ env.SDK_CORE_REPO }}",
             "sdk_core_branch": "${{ env.SDK_CORE_BRANCH }}",
             "sdk_core_version": "${{ needs.prepare-custom-sdk.outputs.sdk-version }}",
             "flutter_sdk_commit": "${{ github.sha }}",
@@ -332,10 +452,39 @@ jobs:
               "ios": "arm64",
               "android": "armeabi-v7a, arm64-v8a, x86_64",
               "macos": "x86_64, arm64",
-              "windows": "x64",
-              "linux": "x64"
+              "windows": "x64"
             }
           }
+          EOF
+
+          echo "Version info:"
+          cat release/VERSION.json
+
+      - name: Create README
+        run: |
+          cat > release/README.md << EOF
+          # OpenIM SDK FFI Libraries
+
+          Built from custom SDK Core:
+          - Repository: https://github.com/${{ env.SDK_CORE_REPO }}
+          - Branch: ${{ env.SDK_CORE_BRANCH }}
+          - Commit: ${{ needs.prepare-custom-sdk.outputs.sdk-version }}
+          - Build Date: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+
+          ## Included Platforms
+
+          | Platform | File | Architecture |
+          |----------|------|-------------|
+          | iOS | ios/OpenIMCore.xcframework | arm64 |
+          | Android | android/openim-sdk.aar | multi-arch |
+          | macOS | macos/libopenim_sdk.dylib | universal |
+          | Windows | windows/openim_sdk.dll | x64 |
+
+          ## Usage
+
+          1. Copy the appropriate library to your Flutter project
+          2. Ensure your Flutter SDK references these libraries
+          3. Run your Flutter application
           EOF
 
       - name: Create release archive
@@ -343,6 +492,9 @@ jobs:
           cd release
           tar -czf ../flutter-openim-sdk-custom-${{ needs.prepare-custom-sdk.outputs.sdk-version }}.tar.gz .
           zip -r ../flutter-openim-sdk-custom-${{ needs.prepare-custom-sdk.outputs.sdk-version }}.zip .
+
+          echo "📦 Release packages created:"
+          ls -lh ../flutter-openim-sdk-custom-*
 
       - name: Upload release package
         uses: actions/upload-artifact@v3
@@ -363,14 +515,14 @@ jobs:
             ## Custom SDK Build
 
             This release was built with custom openim-sdk-core:
-            - SDK Core Branch: ${{ env.SDK_CORE_BRANCH }}
-            - SDK Core Version: ${{ needs.prepare-custom-sdk.outputs.sdk-version }}
+            - Repository: https://github.com/${{ env.SDK_CORE_REPO }}
+            - Branch: ${{ env.SDK_CORE_BRANCH }}
+            - Version: ${{ needs.prepare-custom-sdk.outputs.sdk-version }}
 
-            ### Platforms
-            - ✅ iOS (arm64)
-            - ✅ Android (multi-arch)
-            - ✅ macOS (universal)
-            - ✅ Windows (x64)
-            - ✅ Linux (x64)
+            ### ✅ Platforms Included
+            - iOS (arm64)
+            - Android (multi-arch)
+            - macOS (universal)
+            - Windows (x64)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
