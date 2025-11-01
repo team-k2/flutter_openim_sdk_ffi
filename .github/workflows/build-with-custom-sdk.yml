@@ -112,10 +112,27 @@ jobs:
 
       - name: Install gomobile
         run: |
+          # Install gomobile tools
           go install golang.org/x/mobile/cmd/gomobile@latest
           go install golang.org/x/mobile/cmd/gobind@latest
+
+          # Add to PATH
           export PATH=$PATH:$(go env GOPATH)/bin
-          gomobile init
+          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+
+          # Clone and install golang.org/x/mobile properly
+          cd $(go env GOPATH)
+          mkdir -p src/golang.org/x
+          cd src/golang.org/x
+          if [ ! -d mobile ]; then
+            git clone https://github.com/golang/mobile.git
+          fi
+          cd mobile
+          go install ./cmd/gomobile
+          go install ./cmd/gobind
+
+          # Initialize gomobile (this downloads the necessary packages)
+          $(go env GOPATH)/bin/gomobile init
 
       - name: Build iOS Framework
         run: |
@@ -124,8 +141,12 @@ jobs:
 
           echo "Building iOS Framework from branch: ${{ env.SDK_CORE_BRANCH }}"
 
+          # Ensure packages are available in SDK Core
+          export GO111MODULE=on
+          go mod download
+
           # 編譯 iOS Framework
-          gomobile bind -v \
+          $(go env GOPATH)/bin/gomobile bind -v \
             -target=ios \
             -o ../flutter_sdk/ios/OpenIMCore.xcframework \
             -ldflags="-s -w -X main.SDKVersion=${{ needs.prepare-custom-sdk.outputs.sdk-version }}" \
@@ -189,10 +210,27 @@ jobs:
 
       - name: Install gomobile
         run: |
+          # Install gomobile tools
           go install golang.org/x/mobile/cmd/gomobile@latest
           go install golang.org/x/mobile/cmd/gobind@latest
+
+          # Add to PATH
           export PATH=$PATH:$(go env GOPATH)/bin
-          gomobile init
+          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+
+          # Clone and install golang.org/x/mobile properly
+          cd $(go env GOPATH)
+          mkdir -p src/golang.org/x
+          cd src/golang.org/x
+          if [ ! -d mobile ]; then
+            git clone https://github.com/golang/mobile.git
+          fi
+          cd mobile
+          go install ./cmd/gomobile
+          go install ./cmd/gobind
+
+          # Initialize gomobile (this downloads the necessary packages)
+          $(go env GOPATH)/bin/gomobile init
 
       - name: Build Android AAR
         run: |
@@ -201,7 +239,11 @@ jobs:
 
           echo "Building Android AAR from branch: ${{ env.SDK_CORE_BRANCH }}"
 
-          gomobile bind -v \
+          # Ensure packages are available in SDK Core
+          export GO111MODULE=on
+          go mod download
+
+          $(go env GOPATH)/bin/gomobile bind -v \
             -target=android \
             -androidapi ${{ env.ANDROID_API_LEVEL }} \
             -o ../flutter_sdk/android/libs/openim-sdk.aar \
