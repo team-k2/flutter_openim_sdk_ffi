@@ -9,7 +9,7 @@ on:
         required: false
         default: 'completeEditMessage'  # 預設使用 completeEditMessage 分支
       platforms:
-        description: 'Platforms to build (comma-separated: ios,android,windows,macos,linux or all)'
+        description: 'Platforms to build (comma-separated: ios,android or all)'
         required: false
         default: 'all'
 
@@ -138,24 +138,20 @@ jobs:
           cd openim-sdk-core
           export GOPATH=$(go env GOPATH)
           export PATH=$PATH:$GOPATH/bin
-          export GO111MODULE=off
 
           echo "Building iOS Framework from branch: ${{ env.SDK_CORE_BRANCH }}"
 
-          # Copy SDK to GOPATH for GOPATH mode
-          mkdir -p $GOPATH/src/github.com/openimsdk
-          cp -r . $GOPATH/src/github.com/openimsdk/openim-sdk-core
+          # Download all dependencies and create vendor directory
+          go mod download
+          go mod vendor
 
-          # Build from GOPATH location
-          cd $GOPATH/src/github.com/openimsdk/openim-sdk-core
-
-          # 編譯 iOS Framework
+          # 編譯 iOS Framework using vendor mode
           $GOPATH/bin/gomobile bind -v \
             -target=ios \
-            -o $GITHUB_WORKSPACE/flutter_sdk/ios/OpenIMCore.xcframework \
+            -o ../flutter_sdk/ios/OpenIMCore.xcframework \
             -ldflags="-s -w" \
-            github.com/openimsdk/openim-sdk-core/open_im_sdk \
-            github.com/openimsdk/openim-sdk-core/open_im_sdk_callback
+            -mod=vendor \
+            ./open_im_sdk ./open_im_sdk_callback
 
       - name: Verify Framework
         run: |
@@ -241,24 +237,21 @@ jobs:
           cd openim-sdk-core
           export GOPATH=$(go env GOPATH)
           export PATH=$PATH:$GOPATH/bin
-          export GO111MODULE=off
 
           echo "Building Android AAR from branch: ${{ env.SDK_CORE_BRANCH }}"
 
-          # Copy SDK to GOPATH for GOPATH mode
-          mkdir -p $GOPATH/src/github.com/openimsdk
-          cp -r . $GOPATH/src/github.com/openimsdk/openim-sdk-core
+          # Download all dependencies and create vendor directory
+          go mod download
+          go mod vendor
 
-          # Build from GOPATH location
-          cd $GOPATH/src/github.com/openimsdk/openim-sdk-core
-
+          # 編譯 Android AAR using vendor mode
           $GOPATH/bin/gomobile bind -v \
             -target=android \
             -androidapi ${{ env.ANDROID_API_LEVEL }} \
-            -o $GITHUB_WORKSPACE/flutter_sdk/android/libs/openim-sdk.aar \
+            -o ../flutter_sdk/android/libs/openim-sdk.aar \
             -ldflags="-s -w" \
-            github.com/openimsdk/openim-sdk-core/open_im_sdk \
-            github.com/openimsdk/openim-sdk-core/open_im_sdk_callback
+            -mod=vendor \
+            ./open_im_sdk ./open_im_sdk_callback
 
       - name: Verify AAR
         run: |
@@ -278,179 +271,6 @@ jobs:
           name: android-aar-custom
           path: flutter_sdk/android/libs/openim-sdk.aar
 
-  build-macos:
-    name: Build macOS Library
-    runs-on: macos-latest
-    needs: prepare-custom-sdk
-    steps:
-      - name: Download custom SDK Core
-        uses: actions/download-artifact@v4
-        with:
-          name: custom-sdk-core
-          path: ./openim-sdk-core
-
-      - name: Checkout flutter_openim_sdk_ffi
-        uses: actions/checkout@v4
-        with:
-          path: ./flutter_sdk
-
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ env.GO_VERSION }}
-
-      - name: Configure go.mod
-        run: |
-          cd openim-sdk-core
-          if [ ! -f go.mod ]; then
-            go mod init github.com/openimsdk/openim-sdk-core/v3
-          fi
-          go mod tidy
-
-      - name: Create wrapper for macOS
-        run: |
-          mkdir -p openim-sdk-core/cmd/clib
-          cat > openim-sdk-core/cmd/clib/main.go << 'EOF'
-          package main
-
-          import "C"
-          import (
-              _ "github.com/openimsdk/openim-sdk-core/v3/open_im_sdk"
-              _ "github.com/openimsdk/openim-sdk-core/v3/open_im_sdk_callback"
-          )
-
-          //export InitSDK
-          func InitSDK() {}
-
-          //export GetVersion
-          func GetVersion() *C.char {
-              return C.CString("custom-${{ needs.prepare-custom-sdk.outputs.sdk-version }}")
-          }
-
-          func main() {}
-          EOF
-
-      - name: Build macOS Library
-        run: |
-          cd openim-sdk-core
-
-          echo "Building macOS library from branch: ${{ env.SDK_CORE_BRANCH }}"
-
-          go build -buildmode=c-shared \
-            -ldflags="-s -w" \
-            -o ../flutter_sdk/macos/libopenim_sdk.dylib \
-            ./cmd/clib
-
-      - name: Verify macOS Library
-        run: |
-          echo "Verifying macOS library..."
-          if [ -f "flutter_sdk/macos/libopenim_sdk.dylib" ]; then
-            echo "✅ macOS library built successfully"
-            file flutter_sdk/macos/libopenim_sdk.dylib
-            # 檢查編輯功能是否存在
-            nm -g flutter_sdk/macos/libopenim_sdk.dylib | grep -i edit || echo "Warning: Edit functions not found"
-          else
-            echo "❌ macOS library build failed"
-            exit 1
-          fi
-
-      - name: Upload macOS Library
-        uses: actions/upload-artifact@v4
-        with:
-          name: macos-library-custom
-          path: flutter_sdk/macos/libopenim_sdk.dylib
-
-  build-windows:
-    name: Build Windows DLL
-    runs-on: windows-latest
-    needs: prepare-custom-sdk
-    steps:
-      - name: Download custom SDK Core
-        uses: actions/download-artifact@v4
-        with:
-          name: custom-sdk-core
-          path: ./openim-sdk-core
-
-      - name: Checkout flutter_openim_sdk_ffi
-        uses: actions/checkout@v4
-        with:
-          path: ./flutter_sdk
-
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ env.GO_VERSION }}
-
-      - name: Setup MinGW
-        uses: egor-tensin/setup-mingw@v2
-        with:
-          platform: x64
-          static: 0
-
-      - name: Configure go.mod
-        shell: bash
-        run: |
-          cd openim-sdk-core
-          if [ ! -f go.mod ]; then
-            go mod init github.com/openimsdk/openim-sdk-core/v3
-          fi
-          go mod tidy
-
-      - name: Create wrapper for Windows
-        shell: bash
-        run: |
-          mkdir -p openim-sdk-core/cmd/clib
-          cat > openim-sdk-core/cmd/clib/main.go << 'EOF'
-          package main
-
-          import "C"
-          import (
-              _ "github.com/openimsdk/openim-sdk-core/v3/open_im_sdk"
-              _ "github.com/openimsdk/openim-sdk-core/v3/open_im_sdk_callback"
-          )
-
-          //export InitSDK
-          func InitSDK() {}
-
-          //export GetVersion
-          func GetVersion() *C.char {
-              return C.CString("custom-${{ needs.prepare-custom-sdk.outputs.sdk-version }}")
-          }
-
-          func main() {}
-          EOF
-
-      - name: Build Windows DLL
-        shell: bash
-        run: |
-          cd openim-sdk-core
-
-          echo "Building Windows DLL from branch: ${{ env.SDK_CORE_BRANCH }}"
-
-          export CGO_ENABLED=1
-          go build -buildmode=c-shared \
-            -ldflags="-s -w" \
-            -o ../flutter_sdk/windows/openim_sdk.dll \
-            ./cmd/clib
-
-      - name: Verify Windows DLL
-        shell: bash
-        run: |
-          echo "Verifying Windows DLL..."
-          if [ -f "flutter_sdk/windows/openim_sdk.dll" ]; then
-            echo "✅ Windows DLL built successfully"
-            file flutter_sdk/windows/openim_sdk.dll
-          else
-            echo "❌ Windows DLL build failed"
-            exit 1
-          fi
-
-      - name: Upload Windows DLL
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-library-custom
-          path: flutter_sdk/windows/openim_sdk.dll
-
   package-release:
     name: Package iOS and Android
     runs-on: ubuntu-latest
@@ -466,7 +286,7 @@ jobs:
 
       - name: Create release structure
         run: |
-          mkdir -p release/{ios,android,macos,windows}
+          mkdir -p release/{ios,android}
 
           # iOS
           if [ -d "artifacts/ios-framework-custom" ]; then
@@ -480,18 +300,6 @@ jobs:
             echo "✅ Android AAR packaged"
           fi
 
-          # macOS
-          if [ -f "artifacts/macos-library-custom/libopenim_sdk.dylib" ]; then
-            cp artifacts/macos-library-custom/libopenim_sdk.dylib release/macos/
-            echo "✅ macOS library packaged"
-          fi
-
-          # Windows
-          if [ -f "artifacts/windows-library-custom/openim_sdk.dll" ]; then
-            cp artifacts/windows-library-custom/openim_sdk.dll release/windows/
-            echo "✅ Windows DLL packaged"
-          fi
-
       - name: Create version info
         run: |
           cat > release/VERSION.json << EOF
@@ -503,9 +311,7 @@ jobs:
             "flutter_sdk_commit": "${{ github.sha }}",
             "platforms": {
               "ios": "arm64",
-              "android": "armeabi-v7a, arm64-v8a, x86_64",
-              "macos": "x86_64, arm64",
-              "windows": "x64"
+              "android": "armeabi-v7a, arm64-v8a, x86_64"
             }
           }
           EOF
@@ -530,8 +336,6 @@ jobs:
           |----------|------|-------------|
           | iOS | ios/OpenIMCore.xcframework | arm64 |
           | Android | android/openim-sdk.aar | multi-arch |
-          | macOS | macos/libopenim_sdk.dylib | universal |
-          | Windows | windows/openim_sdk.dll | x64 |
 
           ## Usage
 
@@ -575,7 +379,5 @@ jobs:
             ### ✅ Platforms Included
             - iOS (arm64)
             - Android (multi-arch)
-            - macOS (universal)
-            - Windows (x64)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
