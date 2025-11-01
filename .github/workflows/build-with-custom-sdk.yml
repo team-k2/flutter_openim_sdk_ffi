@@ -112,41 +112,38 @@ jobs:
 
       - name: Install gomobile
         run: |
-          # Install gomobile tools
+          # Set Go environment
+          export GOPATH=$(go env GOPATH)
+          export PATH=$PATH:$GOPATH/bin
+          echo "$GOPATH/bin" >> $GITHUB_PATH
+
+          # Install gomobile with Go modules
           go install golang.org/x/mobile/cmd/gomobile@latest
           go install golang.org/x/mobile/cmd/gobind@latest
 
-          # Add to PATH
-          export PATH=$PATH:$(go env GOPATH)/bin
-          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+          # Download the bind package explicitly
+          go get golang.org/x/mobile/bind@latest
 
-          # Clone and install golang.org/x/mobile properly
-          cd $(go env GOPATH)
-          mkdir -p src/golang.org/x
-          cd src/golang.org/x
-          if [ ! -d mobile ]; then
-            git clone https://github.com/golang/mobile.git
-          fi
-          cd mobile
-          go install ./cmd/gomobile
-          go install ./cmd/gobind
-
-          # Initialize gomobile (this downloads the necessary packages)
-          $(go env GOPATH)/bin/gomobile init
+          # Initialize gomobile with proper environment
+          export GO111MODULE=auto
+          $GOPATH/bin/gomobile init -v
 
       - name: Build iOS Framework
         run: |
           cd openim-sdk-core
-          export PATH=$PATH:$(go env GOPATH)/bin
+          export GOPATH=$(go env GOPATH)
+          export PATH=$PATH:$GOPATH/bin
 
           echo "Building iOS Framework from branch: ${{ env.SDK_CORE_BRANCH }}"
 
-          # Ensure packages are available in SDK Core
-          export GO111MODULE=on
+          # Ensure packages are available
           go mod download
 
+          # Set GO111MODULE to auto for gomobile compatibility
+          export GO111MODULE=auto
+
           # 編譯 iOS Framework
-          $(go env GOPATH)/bin/gomobile bind -v \
+          $GOPATH/bin/gomobile bind -v \
             -target=ios \
             -o ../flutter_sdk/ios/OpenIMCore.xcframework \
             -ldflags="-s -w -X main.SDKVersion=${{ needs.prepare-custom-sdk.outputs.sdk-version }}" \
@@ -210,40 +207,37 @@ jobs:
 
       - name: Install gomobile
         run: |
-          # Install gomobile tools
+          # Set Go environment
+          export GOPATH=$(go env GOPATH)
+          export PATH=$PATH:$GOPATH/bin
+          echo "$GOPATH/bin" >> $GITHUB_PATH
+
+          # Install gomobile with Go modules
           go install golang.org/x/mobile/cmd/gomobile@latest
           go install golang.org/x/mobile/cmd/gobind@latest
 
-          # Add to PATH
-          export PATH=$PATH:$(go env GOPATH)/bin
-          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+          # Download the bind package explicitly
+          go get golang.org/x/mobile/bind@latest
 
-          # Clone and install golang.org/x/mobile properly
-          cd $(go env GOPATH)
-          mkdir -p src/golang.org/x
-          cd src/golang.org/x
-          if [ ! -d mobile ]; then
-            git clone https://github.com/golang/mobile.git
-          fi
-          cd mobile
-          go install ./cmd/gomobile
-          go install ./cmd/gobind
-
-          # Initialize gomobile (this downloads the necessary packages)
-          $(go env GOPATH)/bin/gomobile init
+          # Initialize gomobile with proper environment
+          export GO111MODULE=auto
+          $GOPATH/bin/gomobile init -v
 
       - name: Build Android AAR
         run: |
           cd openim-sdk-core
-          export PATH=$PATH:$(go env GOPATH)/bin
+          export GOPATH=$(go env GOPATH)
+          export PATH=$PATH:$GOPATH/bin
 
           echo "Building Android AAR from branch: ${{ env.SDK_CORE_BRANCH }}"
 
-          # Ensure packages are available in SDK Core
-          export GO111MODULE=on
+          # Ensure packages are available
           go mod download
 
-          $(go env GOPATH)/bin/gomobile bind -v \
+          # Set GO111MODULE to auto for gomobile compatibility
+          export GO111MODULE=auto
+
+          $GOPATH/bin/gomobile bind -v \
             -target=android \
             -androidapi ${{ env.ANDROID_API_LEVEL }} \
             -o ../flutter_sdk/android/libs/openim-sdk.aar \
