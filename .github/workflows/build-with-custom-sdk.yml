@@ -117,20 +117,11 @@ jobs:
           export PATH=$PATH:$GOPATH/bin
           echo "$GOPATH/bin" >> $GITHUB_PATH
 
-          # Clone the mobile repository with the bind package
-          mkdir -p $GOPATH/src/golang.org/x
-          cd $GOPATH/src/golang.org/x
-          git clone https://github.com/golang/mobile.git
-          cd mobile
-          # Use the commit before Go 1.24 requirement
-          git checkout 2782386b8afd
+          # Install gomobile using a specific version that works with Go 1.23
+          go install golang.org/x/mobile/cmd/gomobile@v0.0.0-20240604190613-2782386b8afd
+          go install golang.org/x/mobile/cmd/gobind@v0.0.0-20240604190613-2782386b8afd
 
-          # Install gomobile and gobind from the cloned repository
-          go install ./cmd/gomobile
-          go install ./cmd/gobind
-
-          # Initialize gomobile (this will use the local packages)
-          cd $GOPATH
+          # Initialize gomobile
           $GOPATH/bin/gomobile init -v
 
       - name: Build iOS Framework
@@ -214,20 +205,11 @@ jobs:
           export PATH=$PATH:$GOPATH/bin
           echo "$GOPATH/bin" >> $GITHUB_PATH
 
-          # Clone the mobile repository with the bind package
-          mkdir -p $GOPATH/src/golang.org/x
-          cd $GOPATH/src/golang.org/x
-          git clone https://github.com/golang/mobile.git
-          cd mobile
-          # Use the commit before Go 1.24 requirement
-          git checkout 2782386b8afd
+          # Install gomobile using a specific version that works with Go 1.23
+          go install golang.org/x/mobile/cmd/gomobile@v0.0.0-20240604190613-2782386b8afd
+          go install golang.org/x/mobile/cmd/gobind@v0.0.0-20240604190613-2782386b8afd
 
-          # Install gomobile and gobind from the cloned repository
-          go install ./cmd/gomobile
-          go install ./cmd/gobind
-
-          # Initialize gomobile (this will use the local packages)
-          cd $GOPATH
+          # Initialize gomobile
           $GOPATH/bin/gomobile init -v
 
       - name: Build Android AAR
