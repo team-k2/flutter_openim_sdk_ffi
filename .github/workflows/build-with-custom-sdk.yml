@@ -141,16 +141,14 @@ jobs:
 
           echo "Building iOS Framework from branch: ${{ env.SDK_CORE_BRANCH }}"
 
-          # Download all dependencies and create vendor directory
+          # Ensure all dependencies are available
           go mod download
-          go mod vendor
 
-          # 編譯 iOS Framework using vendor mode
+          # Try building with gomobile directly (without -mod flag)
           $GOPATH/bin/gomobile bind -v \
             -target=ios \
             -o ../flutter_sdk/ios/OpenIMCore.xcframework \
             -ldflags="-s -w" \
-            -mod=vendor \
             ./open_im_sdk ./open_im_sdk_callback
 
       - name: Verify Framework
@@ -240,17 +238,15 @@ jobs:
 
           echo "Building Android AAR from branch: ${{ env.SDK_CORE_BRANCH }}"
 
-          # Download all dependencies and create vendor directory
+          # Ensure all dependencies are available
           go mod download
-          go mod vendor
 
-          # 編譯 Android AAR using vendor mode
+          # Build Android AAR (without -mod flag)
           $GOPATH/bin/gomobile bind -v \
             -target=android \
             -androidapi ${{ env.ANDROID_API_LEVEL }} \
             -o ../flutter_sdk/android/libs/openim-sdk.aar \
             -ldflags="-s -w" \
-            -mod=vendor \
             ./open_im_sdk ./open_im_sdk_callback
 
       - name: Verify AAR
