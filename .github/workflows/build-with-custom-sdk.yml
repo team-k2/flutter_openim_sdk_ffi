@@ -117,6 +117,9 @@ jobs:
           export PATH=$PATH:$GOPATH/bin
           echo "$GOPATH/bin" >> $GITHUB_PATH
 
+          # First, get the entire golang.org/x/mobile module
+          go get golang.org/x/mobile@v0.0.0-20240213143359-d1f7d3436075
+
           # Install gomobile version compatible with Go 1.22
           go install golang.org/x/mobile/cmd/gomobile@v0.0.0-20240213143359-d1f7d3436075
           go install golang.org/x/mobile/cmd/gobind@v0.0.0-20240213143359-d1f7d3436075
@@ -204,6 +207,9 @@ jobs:
           export GOPATH=$(go env GOPATH)
           export PATH=$PATH:$GOPATH/bin
           echo "$GOPATH/bin" >> $GITHUB_PATH
+
+          # First, get the entire golang.org/x/mobile module
+          go get golang.org/x/mobile@v0.0.0-20240213143359-d1f7d3436075
 
           # Install gomobile version compatible with Go 1.22
           go install golang.org/x/mobile/cmd/gomobile@v0.0.0-20240213143359-d1f7d3436075
