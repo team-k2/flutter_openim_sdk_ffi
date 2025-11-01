@@ -117,14 +117,22 @@ jobs:
           export PATH=$PATH:$GOPATH/bin
           echo "$GOPATH/bin" >> $GITHUB_PATH
 
-          # First, get the entire golang.org/x/mobile module
-          go get golang.org/x/mobile@v0.0.0-20240213143359-d1f7d3436075
+          # Clone golang.org/x/mobile to GOPATH
+          mkdir -p $GOPATH/src/golang.org/x
+          cd $GOPATH/src/golang.org/x
+          git clone https://github.com/golang/mobile.git
+          cd mobile
+          # Checkout specific version compatible with Go 1.22
+          git checkout v0.0.0-20240213143359-d1f7d3436075
 
-          # Install gomobile version compatible with Go 1.22
-          go install golang.org/x/mobile/cmd/gomobile@v0.0.0-20240213143359-d1f7d3436075
-          go install golang.org/x/mobile/cmd/gobind@v0.0.0-20240213143359-d1f7d3436075
+          # Build and install gomobile from source
+          cd $GOPATH/src/golang.org/x/mobile/cmd/gomobile
+          go install
+          cd $GOPATH/src/golang.org/x/mobile/cmd/gobind
+          go install
 
           # Initialize gomobile
+          cd $GITHUB_WORKSPACE
           $GOPATH/bin/gomobile init -v
 
       - name: Build iOS Framework
@@ -208,14 +216,22 @@ jobs:
           export PATH=$PATH:$GOPATH/bin
           echo "$GOPATH/bin" >> $GITHUB_PATH
 
-          # First, get the entire golang.org/x/mobile module
-          go get golang.org/x/mobile@v0.0.0-20240213143359-d1f7d3436075
+          # Clone golang.org/x/mobile to GOPATH
+          mkdir -p $GOPATH/src/golang.org/x
+          cd $GOPATH/src/golang.org/x
+          git clone https://github.com/golang/mobile.git
+          cd mobile
+          # Checkout specific version compatible with Go 1.22
+          git checkout v0.0.0-20240213143359-d1f7d3436075
 
-          # Install gomobile version compatible with Go 1.22
-          go install golang.org/x/mobile/cmd/gomobile@v0.0.0-20240213143359-d1f7d3436075
-          go install golang.org/x/mobile/cmd/gobind@v0.0.0-20240213143359-d1f7d3436075
+          # Build and install gomobile from source
+          cd $GOPATH/src/golang.org/x/mobile/cmd/gomobile
+          go install
+          cd $GOPATH/src/golang.org/x/mobile/cmd/gobind
+          go install
 
           # Initialize gomobile
+          cd $GITHUB_WORKSPACE
           $GOPATH/bin/gomobile init -v
 
       - name: Build Android AAR
