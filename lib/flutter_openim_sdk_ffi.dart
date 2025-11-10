@@ -13,6 +13,10 @@ import 'package:path_provider/path_provider.dart';
 import 'flutter_openim_sdk_ffi_bindings_generated.dart';
 import 'src/utils.dart';
 
+// Message Edit Feature
+export 'src/message_edit_service.dart';
+export 'src/widgets/message_edit_widget.dart';
+
 /// callback
 part 'src/callback/_error.dart';
 part 'src/callback/_listen.dart';

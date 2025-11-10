@@ -1,0 +1,133 @@
+# Multi-stage Docker image for building OpenIM SDK for iOS and Android
+FROM golang:1.22 AS builder
+
+# Install dependencies including Java
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    unzip \
+    build-essential \
+    openjdk-17-jdk \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set Java environment - dynamically detect based on architecture
+RUN ARCH=$(dpkg --print-architecture) && \
+    if [ "$ARCH" = "arm64" ]; then \
+        export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-arm64; \
+    else \
+        export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64; \
+    fi && \
+    echo "export JAVA_HOME=$JAVA_HOME" >> /etc/environment
+ENV PATH=$PATH:/usr/lib/jvm/java-17-openjdk-arm64/bin:/usr/lib/jvm/java-17-openjdk-amd64/bin
+
+# Install Android SDK
+ENV ANDROID_HOME=/opt/android-sdk
+ENV PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools
+
+RUN mkdir -p $ANDROID_HOME && \
+    cd $ANDROID_HOME && \
+    curl -o commandlinetools.zip https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip && \
+    unzip commandlinetools.zip && \
+    rm commandlinetools.zip && \
+    mkdir -p cmdline-tools/latest && \
+    mv cmdline-tools/* cmdline-tools/latest/ 2>/dev/null || true && \
+    ARCH=$(dpkg --print-architecture) && \
+    if [ "$ARCH" = "arm64" ]; then \
+        export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-arm64; \
+    else \
+        export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64; \
+    fi && \
+    yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true && \
+    $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2" "ndk;25.2.9519653"
+
+# Set up Go environment
+ENV GOPATH=/go
+ENV GO111MODULE=auto
+ENV PATH=$PATH:$GOPATH/bin
+
+# Install gomobile using GOPATH mode
+RUN mkdir -p $GOPATH/src/golang.org/x && \
+    cd $GOPATH/src/golang.org/x && \
+    git clone https://github.com/golang/mobile.git && \
+    cd mobile && \
+    git checkout d1f7d3436075 && \
+    GO111MODULE=off go install ./cmd/gomobile && \
+    GO111MODULE=off go install ./cmd/gobind
+
+# Initialize gomobile with Android NDK
+ENV ANDROID_NDK_HOME=$ANDROID_HOME/ndk/25.2.9519653
+RUN GO111MODULE=off gomobile init -v
+
+# Set working directory
+WORKDIR /workspace
+
+# Build script
+COPY <<'EOF' /build.sh
+#!/bin/bash
+set -e
+
+echo "================================================"
+echo "🚀 Building OpenIM SDK for Mobile Platforms"
+echo "================================================"
+
+# Clone custom SDK if provided
+if [ -n "$SDK_REPO" ] && [ -n "$SDK_BRANCH" ]; then
+    echo "Cloning custom SDK: $SDK_REPO (branch: $SDK_BRANCH)"
+    git clone https://github.com/$SDK_REPO.git openim-sdk-core
+    cd openim-sdk-core
+    git checkout $SDK_BRANCH
+else
+    echo "Using local SDK"
+    cd openim-sdk-core
+fi
+
+# Update dependencies
+echo "Updating Go dependencies..."
+go mod download
+go mod tidy
+
+# Create output directory
+mkdir -p /output
+
+# Build iOS SDK (if on macOS, otherwise skip)
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    echo "Building iOS SDK..."
+    gomobile bind -v \
+        -target=ios \
+        -o /output/OpenIMCore.xcframework \
+        -ldflags="-s -w" \
+        ./open_im_sdk ./open_im_sdk_callback
+    echo "✅ iOS SDK built successfully"
+else
+    echo "⚠️ iOS SDK can only be built on macOS"
+fi
+
+# Build Android SDK
+echo "Building Android SDK..."
+gomobile bind -v \
+    -target=android \
+    -androidapi 21 \
+    -o /output/OpenIMSDK.aar \
+    -ldflags="-s -w" \
+    ./open_im_sdk ./open_im_sdk_callback
+
+if [ -f /output/OpenIMSDK.aar ]; then
+    echo "✅ Android SDK built successfully"
+    echo "File size: $(ls -lh /output/OpenIMSDK.aar | awk '{print $5}')"
+else
+    echo "❌ Android SDK build failed"
+    exit 1
+fi
+
+echo ""
+echo "================================================"
+echo "✅ Build completed successfully!"
+echo "================================================"
+echo "Output files:"
+ls -la /output/
+EOF
+
+RUN chmod +x /build.sh
+
+# Entry point
+ENTRYPOINT ["/build.sh"]

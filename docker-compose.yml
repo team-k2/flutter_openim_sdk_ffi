@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  sdk-builder:
+    build:
+      context: .
+      dockerfile: Dockerfile.sdk-builder
+    environment:
+      - SDK_REPO=team-k2/openim-sdk-core
+      - SDK_BRANCH=completeEditMessage
+    volumes:
+      # Mount local SDK if you want to use local version
+      - ../openim-sdk-core:/workspace/openim-sdk-core:ro
+      # Output directory
+      - ./output:/output
+    command: /build.sh
